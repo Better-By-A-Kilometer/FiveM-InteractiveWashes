@@ -34,6 +34,168 @@ class CarWash {
     }
 }
 
+class Marker {
+    handle: number = -1;
+    private _enabled: boolean = true;
+    private destroyed: boolean = false;
+    private _markerType: number;
+    private _alpha: number = 80;
+    private _pos: Vector3 = Vector3.Zero();
+    private _offset: Vector3 = Vector3.Zero();
+    private _rot: Vector3 = Vector3.Zero();
+    private _size: Vector3 = Vector3.One();
+    private _R: number = 3;
+    private _G: number = 128;
+    private _B: number = 252;
+    private _bobUpAndDown: boolean = false;
+    private _rotate: boolean = false;
+    private _targetEntity?: number; // Entity ID
+
+    constructor(markerType: number, markerAttachTo: string, pos: Vector3, entity?: number) {
+        this._markerType = markerType;
+        this._pos = pos;
+        if (entity) {
+            this._targetEntity = entity;
+        }
+        if (markerAttachTo === "entity" && !entity) {
+            throw new Error("You need to provide a valid entity to attach to!");
+        }
+
+        this.setHandle();
+        this.create();
+        if (markerAttachTo === "entity") {
+            this.attachPositionToEntity();
+        }
+    }
+
+    get enabled(): boolean {
+        return this._enabled;
+    }
+
+    get target(): number | undefined {
+        return this._targetEntity;
+    }
+
+    get visible(): boolean {
+        return this._enabled;
+    }
+
+    public setMovement(bobbing: boolean = false, rotate: boolean = false): void {
+        this._bobUpAndDown = bobbing;
+        this._rotate = rotate;
+    }
+
+    public setOpacity(opacity: number): void {
+        this._alpha = opacity;
+    }
+
+    public setOffset(offset: Vector3): void {
+        this._offset = offset;
+    }
+
+    public setSize(size: Vector3): void {
+        this._size = size;
+    }
+
+    public setRotation(rot: Vector3): void {
+        this._rot = rot;
+    }
+
+    public setColor(r: number, g: number, b: number): void {
+        this._R = r;
+        this._G = g;
+        this._B = b;
+    }
+
+    public setPosition(pos: Vector3): void {
+        this._pos = pos;
+    }
+
+    public async autoDispose(predicate: () => boolean, msInterval: number = 100): Promise<void> {
+        while (predicate()) {
+            await new Promise(resolve => setTimeout(resolve, msInterval));
+        }
+        this.dispose();
+    }
+
+    private async create(): Promise<void> {
+        this._enabled = true;
+        while (!this.destroyed) {
+            if (this.enabled) {
+                // Draw Marker using FiveM native methods
+                DrawMarker(
+                    this._markerType,
+                    this._pos.x,
+                    this._pos.y,
+                    this._pos.z,
+                    0,
+                    0,
+                    0,
+                    this._rot.x,
+                    this._rot.y,
+                    this._rot.z,
+                    this._size.x,
+                    this._size.y,
+                    this._size.z,
+                    this._R,
+                    this._G,
+                    this._B,
+                    this._alpha,
+                    this._bobUpAndDown,
+                    false,
+                    2,
+                    this._rotate,
+                    "",
+                    "",
+                    false
+                );
+            }
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+    }
+
+    public setTargetEntity(entity: number): void {
+        this._targetEntity = entity;
+    }
+
+    private async attachPositionToEntity(): Promise<void> {
+        while (!this.destroyed) {
+            if (this._targetEntity) {
+                const coords = GetEntityCoords(this._targetEntity, true);
+                this._pos = new Vector3(
+                    coords[0] + this._offset.x,
+                    coords[1] + this._offset.y,
+                    coords[2] + this._offset.z
+                );
+            }
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+    }
+
+    public setVisibility(state: boolean): void {
+        this._enabled = state;
+    }
+
+    public dispose(): void {
+        this.destroyed = true;
+        this._enabled = false;
+    }
+
+    private async setHandle(): Promise<void> {
+        let handle: number = Math.floor(Math.random() * 100000);
+        while (markers.has(handle) && !this.destroyed) {
+            handle = Math.floor(Math.random() * 100000);
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+        this.handle = handle;
+    }
+}
+
+// Global marker registry
+const markers = new Map<number, Marker>();
+
+
+
 /*const CarWashes: CarWash[] = [
     new CarWash(new Vector3(0, 0, 0), 0, 10),
 ];*/
@@ -79,11 +241,65 @@ async function Wash(vehicle: number, pos: Vector3, heading: number, length: numb
         running = false;
         return;
     });
-    await WaitUntilVehicleIsAtPosition(vehicle, pos, 2);
+
+    const forwardVector = GetEntityForwardVector(vehicle);
+    const endPos = new Vector3(
+        pos.x + length * forwardVector[0],
+        pos.y + length * forwardVector[1],
+        pos.z + length * forwardVector[2]
+    );
+    var marker = new Marker(1, "entity", endPos);
+    marker.setColor(23, 117, 212);
+    marker.setSize(Vector3.One());
+    marker.setVisibility(true);
+    
+    marker.autoDispose(() => !running, 1000).catch(() => {});
+    // Spawn water particle effects to spray at vehicle from above scattered across the length.
+    
+    await WaitUntilVehicleIsAtPosition(vehicle, endPos, 2);
     console.log("Wash complete.");
     running = false;
     // At the end, set vehicle as clean.
     SetVehicleDirtLevel(vehicle, 0);
+}
+
+function SprayWaterEffects(position: Vector3, duration: number) {
+    const waterEffectName = "core_water_splash"; // Request or use an existing water effect
+    const effectOffset = {x: 0, y: 0, z: 5}; // 5 feet above the position
+
+    const startEffect = () => {
+        const effectPos = {
+            x: position.x + effectOffset.x,
+            y: position.y + effectOffset.y,
+            z: position.z + effectOffset.z
+        };
+
+        RequestNamedPtfxAsset("core"); // Make the effect asset available
+        while (!HasNamedPtfxAssetLoaded("core")) {
+            Wait(0); // Wait until the effect asset is fully loaded
+        }
+
+        UseParticleFxAssetNextCall("core"); // Use the loaded effect asset
+        StartParticleFxNonLoopedAtCoord(
+            waterEffectName,
+            effectPos.x,
+            effectPos.y,
+            effectPos.z,
+            0,
+            180,
+            0,
+            1.0,
+            false,
+            false,
+            false
+        );
+    };
+
+    const startTime = GetGameTimer();
+    while (GetGameTimer() - startTime < duration) {
+        startEffect(); // Trigger the water spray effect
+        Wait(500); // Wait between each effect trigger
+    }
 }
 
 onNet("wash:success", (pos: object, heading: number, length: number) => {
