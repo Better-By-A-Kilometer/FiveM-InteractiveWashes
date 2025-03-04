@@ -1,0 +1,20 @@
+{
+  "name": "fivem-interactivewashes",
+  "version": "1.0.0",
+  "main": "client.js",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p client/tsconfig.json && tsc --noEmit -p server/tsconfig.json"
+  },
+  "author": "DevKilo",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@citizenfx/client": "^2.0.6063-1",
+    "@citizenfx/server": "^2.0.6063-1",
+    "@types/node": "^20.10.5",
+    "cross-env": "^7.0.3",
+    "esbuild": "^0.19.10",
+    "rimraf": "^5.0.1",
+    "typescript": "^5.3.3"
+  }
+}
