@@ -56,9 +56,34 @@ async function WaitUntilVehicleIsAtPosition(vehicle: number, pos: Vector3, radiu
     }
 }
 
-async function Wash(pos: Vector3, heading: number, length: number) {
+async function RunWhile(fn: Function, predicate: Function, interval: number = 100) {
+    while (predicate()) {
+        fn();
+        Wait(interval);
+    }
+}
+
+async function Wash(vehicle: number, pos: Vector3, heading: number, length: number) {
     // Disable player controls over vehicle, take control over vehicle to make it drive in a fixed direction slowly, spawn water particle emitters like upside-down fire hydrants to spray water from above as vehicle drives through.
+    console.log("Starting wash.")
+    let running = true;
+    RunWhile(function () {
+        DisableAllControlActions(0);    
+    }, () => running, 0).catch(() => {
+        running = false;
+        return;
+    });
+    RunWhile(function () {
+        TaskVehicleDriveToCoord(GetPlayerPed(-1), vehicle, pos.x, pos.y, pos.z, 2, 0, GetEntityModel(vehicle), 16777216, 1.0, 1);    
+    }, () => running, 500).catch(() => {
+        running = false;
+        return;
+    });
+    await WaitUntilVehicleIsAtPosition(vehicle, pos, 2);
+    console.log("Wash complete.");
+    running = false;
     // At the end, set vehicle as clean.
+    SetVehicleDirtLevel(vehicle, 0);
 }
 
 onNet("wash:success", (pos: object, heading: number, length: number) => {
@@ -70,7 +95,7 @@ onNet("wash:success", (pos: object, heading: number, length: number) => {
     }
     var modelLength = GetModelDimensions(GetEntityModel(vehicle))[0][1];
     WaitUntilVehicleIsAtPosition(vehicle, Location, modelLength).then(async () => {
-        await Wash(Location, heading, length);
+        await Wash(vehicle, Location, heading, length);
     }).catch(() => {
         ShowNotification("[Wash Failed]: Unknown reason.");
     })
