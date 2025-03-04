@@ -32,17 +32,13 @@ class CarWash {
         this.Heading = _heading;
         this.Length = _length;
     }
-    async Start(pos: Vector3, heading: number, length: number) {
-        // Disable player controls over vehicle, take control over vehicle to make it drive in a fixed direction slowly, spawn water particle emitters like upside-down fire hydrants to spray water from above as vehicle drives through.
-        // At the end, set vehicle as clean.
-    }
 }
 
-const CarWashes: CarWash[] = [
+/*const CarWashes: CarWash[] = [
     new CarWash(new Vector3(0, 0, 0), 0, 10),
-];
+];*/
 
-const GetNearestCarWash = (pos: Vector3): CarWash => CarWashes.filter(wash => wash.Location.DistanceTo(pos) < 10).sort((a, b) => a.Location.DistanceTo(pos) - b.Location.DistanceTo(pos))[0] ?? undefined;
+/*const GetNearestCarWash = (pos: Vector3): CarWash => CarWashes.filter(wash => wash.Location.DistanceTo(pos) < 10).sort((a, b) => a.Location.DistanceTo(pos) - b.Location.DistanceTo(pos))[0] ?? undefined;*/
 
 function ShowNotification(msg: string) {
     SetTextComponentFormat("STRING");
@@ -61,7 +57,8 @@ async function WaitUntilVehicleIsAtPosition(vehicle: number, pos: Vector3, radiu
 }
 
 async function Wash(pos: Vector3, heading: number, length: number) {
-    
+    // Disable player controls over vehicle, take control over vehicle to make it drive in a fixed direction slowly, spawn water particle emitters like upside-down fire hydrants to spray water from above as vehicle drives through.
+    // At the end, set vehicle as clean.
 }
 
 onNet("wash:success", (pos: object, heading: number, length: number) => {
